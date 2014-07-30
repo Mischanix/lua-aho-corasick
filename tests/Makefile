@@ -3,7 +3,7 @@
 PROGRAM = ac_test
 all: runtest
 
-CXXFLAGS = -O3 -march=native -Wall -DDEBUG
+CXXFLAGS = -O3 -g -march=native -Wall -DDEBUG
 MYCXXFLAGS = -MMD -I.. $(CXXFLAGS)
 %.o : %.cxx
 	$(CXX) $< -std=c++11 -c $(MYCXXFLAGS)
