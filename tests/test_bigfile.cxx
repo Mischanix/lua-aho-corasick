@@ -1,9 +1,3 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -12,6 +6,13 @@
 #include "ac.h"
 #include "ac_util.hpp"
 #include "test_base.hpp"
+
+#define MAP_FAILED ((void *)-1)
+#define WIN32_LEAN_AND_MEAN
+#define NOCRYPT
+#define NOGDI
+#include <Windows.h>
+
 
 ///////////////////////////////////////////////////////////////////////////
 //
@@ -36,13 +37,13 @@ BigFileTester::BigFileTester(const char* filepath) {
 void
 BigFileTester::Cleanup() {
     if (_msg != MAP_FAILED) {
-        munmap((void*)_msg, _msg_len);
+        // munmap((void*)_msg, _msg_len);
         _msg = (char*)MAP_FAILED;
         _msg_len = 0;
     }
 
     if (_fd != -1) {
-        close(_fd);
+        // CloseHandle(_fd);
         _fd = -1;
     }
 }
@@ -85,31 +86,19 @@ BigFileTester::Run() {
     // Step 1: Bring the file into memory
     fprintf(stdout, "Testing using file '%s'...\n", _filepath);
 
-    int fd = _fd = ::open(_filepath, O_RDONLY);
-    if (fd == -1) {
-        perror("open");
-        return false;
-    }
+    HANDLE hFile = CreateFile(_filepath, GENERIC_READ, FILE_SHARE_READ,
+        0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    printf("hFile=%p GLE=%x\n", hFile, GetLastError());
+    HANDLE hFileMap = CreateFileMapping(hFile, 0, PAGE_WRITECOPY, 0, 0, 0);
+    char *p = _msg = (char *)MapViewOfFile(hFileMap, FILE_MAP_COPY, 0, 0, 0);
+    printf("hFileMap=%p GLE=%x\n", hFileMap, GetLastError());
 
-    struct stat sb;
-    if (fstat(fd, &sb) == -1) {
-        perror("fstat");
-        return false;
-    }
+    _fd = *(int *)&hFile;
 
-    if (!S_ISREG (sb.st_mode)) {
-        fprintf(stderr, "%s is not regular file\n", _filepath);
-        return false;
-    }
-
-    int ten_M = 1024 * 1024 * 10;
-    int map_sz = _msg_len = sb.st_size > ten_M ? ten_M : sb.st_size;
-    char* p = _msg =
-        (char*)mmap (0, map_sz, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
-    if (p == MAP_FAILED) {
-        perror("mmap");
-        return false;
-    }
+    // int ten_M = 1024 * 1024 * 10;
+    int map_sz = _msg_len = GetFileSize(hFile, 0); // = sb.st_size > ten_M ? ten_M : sb.st_size;
+    printf("p=%p GLE=%x\n", p, GetLastError());
+    fflush(0);
 
     // Get rid of '\0' if we are picky at it.
     if (Str_C_Style()) {
@@ -119,7 +108,7 @@ BigFileTester::Run() {
 
     // Step 2: "Fabricate" some keys from the file.
     if (!GenerateKeys()) {
-        close(fd);
+        CloseHandle(hFile);
         return false;
     }
 
@@ -144,9 +133,10 @@ BigFileTester::Run() {
     PM_Free(PM);
 
     // Step 5: Clanup
-    munmap(p, map_sz);
+    UnmapViewOfFile((void *)p);
+    CloseHandle(hFileMap);
     _msg = (char*)MAP_FAILED;
-    close(fd);
+    CloseHandle(hFile);
     _fd = -1;
 
     fprintf(stdout, "%s\n", res ? "succ" : "fail");

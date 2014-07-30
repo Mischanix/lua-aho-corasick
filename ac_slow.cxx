@@ -14,7 +14,7 @@
 ACS_Constructor::ACS_Constructor() : _next_node_id(1) {
     _root = new_state();
     _root_char = new InputTy[256];
-    bzero((void*)_root_char, 256);
+    memset((void*)_root_char, 0, 256);
 }
 
 ACS_Constructor::~ACS_Constructor() {

@@ -67,7 +67,7 @@ $(C_SO_NAME) : $(COMMON_OBJ) $(C_SO_OBJ)
 
 # Build aho-corasick.so
 $(LUA_SO_NAME) : $(COMMON_OBJ) $(LUA_SO_OBJ)
-	$(CXX) $+ -shared -Wl,-soname=$(LUA_SO_NAME) $(SO_LFLAGS) -o $@
+	$(CXX) $+ -shared -Wl,-soname=$(LUA_SO_NAME) $(SO_LFLAGS) -llua -o $@
 
 test : $(C_SO_NAME)
 	$(MAKE) -C tests && \

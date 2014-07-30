@@ -1,8 +1,11 @@
 #ifndef TEST_BASE_H
 #define TEST_BASE_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string>
+
+typedef uint32_t uint;
 
 using namespace std;
 class ACTestBase {
