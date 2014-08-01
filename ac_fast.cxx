@@ -231,21 +231,16 @@ Match(AC_Buffer* buf, const char* str, uint32 len) {
         idx = 1;
         next_state = *str;
     }
+    AC_State* state = Get_State_Addr(buf_base, states_ofst_vect, next_state);
+    // Check to see if the state is terminal state?
+    if (unlikely(state->is_term)) {
+        ac_result_t r;
+        r.match_begin = idx - state->depth;
+        r.match_end = idx - 1;
+        return r;
+    }
 
-    while (idx <= len) {
-        AC_State* state = Get_State_Addr(buf_base, states_ofst_vect, next_state);
-        // Check to see if the state is terminal state?
-        if (state->is_term) {
-            ac_result_t r;
-            r.match_begin = idx - state->depth;
-            r.match_end = idx - 1;
-            return r;
-        }
-
-        if (idx >= len) {
-            break;
-        }
-
+    while (idx < len) {
         InputTy c = str[idx];
         int res;
         bool found;
@@ -262,7 +257,6 @@ Match(AC_Buffer* buf, const char* str, uint32 len) {
                 // have 255 valid transitions (otherwise, the fail-link should
                 // points to "goto(root, c)"), so we don't need speical handling
                 // as we did before this while-loop is entered.
-                //
                 while(idx < len) {
                     InputTy c = str[idx++];
                     if ((next_state = root_goto[c]) != 0) {
@@ -270,6 +264,24 @@ Match(AC_Buffer* buf, const char* str, uint32 len) {
                     }
                 }
             }
+        }
+
+        if (idx > len) {
+            break;
+        }
+
+        if (next_state == 0) {
+            break;
+        }
+
+        state = Get_State_Addr(buf_base, states_ofst_vect, next_state);
+
+        // Check to see if the state is terminal state?
+        if (state->is_term) {
+            ac_result_t r;
+            r.match_begin = idx - state->depth;
+            r.match_end = idx - 1;
+            return r;
         }
     }
 
